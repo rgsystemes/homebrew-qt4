@@ -154,8 +154,6 @@ class QtAT4 < Formula
     args << "-nomake" << "docs" if build.without? "docs"
     args << "-debug-and-release" if ENV["HOMEBREW_CCCFG"]&.include?("D")
 
-    #inreplace 'src/3rdparty/javascriptcore/JavaScriptCore/runtime/Identifier.cpp', 'UCharBuffer buf = {s, length}', 'UCharBuffer buf = {s, static_cast<unsigned int>(length)}'
-
     ENV.permit_arch_flags
     if build.with?("universal")
       args << "-universal"
