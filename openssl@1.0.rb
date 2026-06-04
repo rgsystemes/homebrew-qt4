@@ -4,7 +4,7 @@ class OpensslAT10 < Formula
   url "https://www.openssl.org/source/openssl-1.0.2u.tar.gz"
   mirror "https://dl.bintray.com/homebrew/mirror/openssl-1.0.2u.tar.gz"
   mirror "https://www.mirrorservice.org/sites/ftp.openssl.org/source/openssl-1.0.2u.tar.gz"
-  sha256 "14cb464efe7ac6b54799b34456bd69558a749a4931ecfd9cf9f71d7881cac7bc"
+  sha256 "ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16"
 
   bottle do
     root_url "https://github.com/cartr/homebrew-qt4-bottles/releases/download/autobottle-qt4"
