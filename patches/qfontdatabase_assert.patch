@@ -1,0 +1,22 @@
+diff --git a/src/gui/text/qfontdatabase_mac.cpp b/src/gui/text/qfontdatabase_mac.cpp
+index 816a7bd..3897b5b 100644
+--- a/src/gui/text/qfontdatabase_mac.cpp
++++ b/src/gui/text/qfontdatabase_mac.cpp
+@@ -165,7 +165,7 @@ if (QSysInfo::MacintoshVersion >= QSysInfo::MV_10_5) {
+         QString styleName = style_name;
+         if(QCFType<CFDictionaryRef> styles = (CFDictionaryRef)CTFontDescriptorCopyAttribute(font, kCTFontTraitsAttribute)) {
+             if(CFNumberRef weight = (CFNumberRef)CFDictionaryGetValue(styles, kCTFontWeightTrait)) {
+-                Q_ASSERT(CFNumberIsFloatType(weight));
++                // Q_ASSERT(CFNumberIsFloatType(weight));
+                 double d;
+                 if(CFNumberGetValue(weight, kCFNumberDoubleType, &d)) {
+                     //qDebug() << "BOLD" << (QString)family_name << d;
+@@ -173,7 +173,7 @@ if (QSysInfo::MacintoshVersion >= QSysInfo::MV_10_5) {
+                 }
+             }
+             if(CFNumberRef italic = (CFNumberRef)CFDictionaryGetValue(styles, kCTFontSlantTrait)) {
+-                Q_ASSERT(CFNumberIsFloatType(italic));
++                // Q_ASSERT(CFNumberIsFloatType(italic));
+                 double d;
+                 if(CFNumberGetValue(italic, kCFNumberDoubleType, &d)) {
+                     //qDebug() << "ITALIC" << (QString)family_name << d;

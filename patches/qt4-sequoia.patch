@@ -1,0 +1,260 @@
+diff --git a/mkspecs/unsupported/macx-clang-libc++/qmake.conf b/mkspecs/unsupported/macx-clang-libc++/qmake.conf
+index 870d3e6..2b86999 100644
+--- a/mkspecs/unsupported/macx-clang-libc++/qmake.conf
++++ b/mkspecs/unsupported/macx-clang-libc++/qmake.conf
+@@ -16,7 +16,8 @@ include(../../common/clang.conf)
+ QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.9 # Libc++ is available from 10.7 onwards
+
+ QMAKE_CFLAGS += -mmacosx-version-min=$$QMAKE_MACOSX_DEPLOYMENT_TARGET
+-QMAKE_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=$$QMAKE_MACOSX_DEPLOYMENT_TARGET
++QMAKE_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=$$QMAKE_MACOSX_DEPLOYMENT_TARGET -Wno-c++11-narrowing -std=c++11
++QMAKE_OBJECTIVE_CFLAGS += -Wno-c++11-narrowing
+ QMAKE_LFLAGS += -stdlib=libc++ -mmacosx-version-min=$$QMAKE_MACOSX_DEPLOYMENT_TARGET
+
+ QMAKE_OBJCFLAGS_PRECOMPILE       = -x objective-c-header -c ${QMAKE_PCH_INPUT} -o ${QMAKE_PCH_OUTPUT}
+diff --git a/src/3rdparty/javascriptcore/JavaScriptCore/bytecompiler/BytecodeGenerator.cpp b/src/3rdparty/javascriptcore/JavaScriptCore/bytecompiler/BytecodeGenerator.cpp
+index b0a0877..1e899c5 100644
+--- a/src/3rdparty/javascriptcore/JavaScriptCore/bytecompiler/BytecodeGenerator.cpp
++++ b/src/3rdparty/javascriptcore/JavaScriptCore/bytecompiler/BytecodeGenerator.cpp
+@@ -1837,7 +1837,7 @@ RegisterID* BytecodeGenerator::emitCatch(RegisterID* targetRegister, Label* star
+ #if ENABLE(JIT)
+     HandlerInfo info = { start->bind(0, 0), end->bind(0, 0), instructions().size(), m_dynamicScopeDepth + m_baseScopeDepth, CodeLocationLabel() };
+ #else
+-    HandlerInfo info = { start->bind(0, 0), end->bind(0, 0), instructions().size(), m_dynamicScopeDepth + m_baseScopeDepth };
++    HandlerInfo info = { static_cast<uint32_t>(start->bind(0, 0)), static_cast<uint32_t>(end->bind(0, 0)), static_cast<uint32_t>(instructions().size()), static_cast<uint32_t>(m_dynamicScopeDepth + m_baseScopeDepth) };
+ #endif
+
+     m_codeBlock->addExceptionHandler(info);
+@@ -1889,7 +1889,7 @@ void BytecodeGenerator::emitPushNewScope(RegisterID* dst, const Identifier& prop
+
+ void BytecodeGenerator::beginSwitch(RegisterID* scrutineeRegister, SwitchInfo::SwitchType type)
+ {
+-    SwitchInfo info = { instructions().size(), type };
++    SwitchInfo info = { static_cast<uint32_t>(instructions().size()), type };
+     switch (type) {
+         case SwitchInfo::SwitchImmediate:
+             emitOpcode(op_switch_imm);
+diff --git a/src/3rdparty/javascriptcore/JavaScriptCore/bytecompiler/BytecodeGenerator.h b/src/3rdparty/javascriptcore/JavaScriptCore/bytecompiler/BytecodeGenerator.h
+index 8b6a425..af74e60 100644
+--- a/src/3rdparty/javascriptcore/JavaScriptCore/bytecompiler/BytecodeGenerator.h
++++ b/src/3rdparty/javascriptcore/JavaScriptCore/bytecompiler/BytecodeGenerator.h
+@@ -176,7 +176,7 @@ namespace JSC {
+             // Node::emitCode assumes that dst, if provided, is either a local or a referenced temporary.
+             ASSERT(!dst || dst == ignoredResult() || !dst->isTemporary() || dst->refCount());
+             if (!m_codeBlock->numberOfLineInfos() || m_codeBlock->lastLineInfo().lineNumber != n->lineNo()) {
+-                LineInfo info = { instructions().size(), n->lineNo() };
++                LineInfo info = { static_cast<uint32_t>(instructions().size()), n->lineNo() };
+                 m_codeBlock->addLineInfo(info);
+             }
+             if (m_emitNodeDepth >= s_maxEmitNodeDepth)
+@@ -195,7 +195,7 @@ namespace JSC {
+         void emitNodeInConditionContext(ExpressionNode* n, Label* trueTarget, Label* falseTarget, bool fallThroughMeansTrue)
+         {
+             if (!m_codeBlock->numberOfLineInfos() || m_codeBlock->lastLineInfo().lineNumber != n->lineNo()) {
+-                LineInfo info = { instructions().size(), n->lineNo() };
++                LineInfo info = { static_cast<uint32_t>(instructions().size()), n->lineNo() };
+                 m_codeBlock->addLineInfo(info);
+             }
+             if (m_emitNodeDepth >= s_maxEmitNodeDepth)
+diff --git a/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Identifier.cpp b/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Identifier.cpp
+index 747c4ac..ec53620 100644
+--- a/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Identifier.cpp
++++ b/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Identifier.cpp
+@@ -195,7 +195,7 @@ PassRefPtr<UString::Rep> Identifier::add(JSGlobalData* globalData, const UChar*
+         UString::Rep::empty().hash();
+         return &UString::Rep::empty();
+     }
+-    UCharBuffer buf = {s, length}; 
++    UCharBuffer buf = {s, static_cast<unsigned int>(length)};
+     pair<HashSet<UString::Rep*>::iterator, bool> addResult = globalData->identifierTable->add<UCharBuffer, UCharBufferTranslator>(buf);
+
+     // If the string is newly-translated, then we need to adopt it.
+diff --git a/src/3rdparty/javascriptcore/JavaScriptCore/runtime/JSONObject.cpp b/src/3rdparty/javascriptcore/JavaScriptCore/runtime/JSONObject.cpp
+index b089584..fc57279 100644
+--- a/src/3rdparty/javascriptcore/JavaScriptCore/runtime/JSONObject.cpp
++++ b/src/3rdparty/javascriptcore/JavaScriptCore/runtime/JSONObject.cpp
+@@ -320,7 +320,7 @@ void Stringifier::appendQuotedString(StringBuilder& builder, const UString& valu
+             default:
+                 static const char hexDigits[] = "0123456789abcdef";
+                 UChar ch = data[i];
+-                UChar hex[] = { '\\', 'u', hexDigits[(ch >> 12) & 0xF], hexDigits[(ch >> 8) & 0xF], hexDigits[(ch >> 4) & 0xF], hexDigits[ch & 0xF] };
++                UChar hex[] = { '\\', 'u', static_cast<UChar>(hexDigits[(ch >> 12) & 0xF]), static_cast<UChar>(hexDigits[(ch >> 8) & 0xF]), static_cast<UChar>(hexDigits[(ch >> 4) & 0xF]), static_cast<UChar>(hexDigits[ch & 0xF]) };
+                 builder.append(hex, sizeof(hex) / sizeof(UChar));
+                 break;
+         }
+diff --git a/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Structure.cpp b/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Structure.cpp
+index 499c53a..5cb7994 100644
+--- a/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Structure.cpp
++++ b/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Structure.cpp
+@@ -157,7 +157,7 @@ Structure::~Structure()
+ {
+     if (m_previous) {
+         if (m_nameInPrevious)
+-            m_previous->table.remove(StructureTransitionTableHash::Key(RefPtr<UString::Rep>(m_nameInPrevious.get()), m_attributesInPrevious), m_specificValueInPrevious);
++            m_previous->table.remove(StructureTransitionTableHash::Key(RefPtr<UString::Rep>(m_nameInPrevious.get()), static_cast<unsigned>(m_attributesInPrevious)), m_specificValueInPrevious);
+         else
+             m_previous->table.removeAnonymousSlotTransition(m_anonymousSlotsInPrevious);
+
+diff --git a/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Structure.h b/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Structure.h
+index 7571efc..6c8ed9c 100644
+--- a/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Structure.h
++++ b/src/3rdparty/javascriptcore/JavaScriptCore/runtime/Structure.h
+@@ -317,7 +317,7 @@ namespace JSC {
+         TransitionTable* transitionTable = new TransitionTable;
+         setTransitionTable(transitionTable);
+         if (existingTransition)
+-            add(StructureTransitionTableHash::Key(RefPtr<UString::Rep>(existingTransition->m_nameInPrevious.get()), existingTransition->m_attributesInPrevious), existingTransition, existingTransition->m_specificValueInPrevious);
++            add(StructureTransitionTableHash::Key(RefPtr<UString::Rep>(existingTransition->m_nameInPrevious.get()), static_cast<unsigned>(existingTransition->m_attributesInPrevious)), existingTransition, existingTransition->m_specificValueInPrevious);
+     }
+ } // namespace JSC
+
+diff --git a/src/3rdparty/javascriptcore/JavaScriptCore/wtf/MathExtras.h b/src/3rdparty/javascriptcore/JavaScriptCore/wtf/MathExtras.h
+index 9e2e638..0b2d1d5 100644
+--- a/src/3rdparty/javascriptcore/JavaScriptCore/wtf/MathExtras.h
++++ b/src/3rdparty/javascriptcore/JavaScriptCore/wtf/MathExtras.h
+@@ -67,7 +67,7 @@ const float piOverFourFloat = static_cast<float>(M_PI_4);
+ // Work around a bug in the Mac OS X libc where ceil(-0.1) return +0.
+ inline double wtf_ceil(double x) { return copysign(ceil(x), x); }
+
+-#define ceil(x) wtf_ceil(x)
++// #define ceil(x) wtf_ceil(x)
+
+ #endif
+
+diff --git a/src/3rdparty/libpng/pngpriv.h b/src/3rdparty/libpng/pngpriv.h
+index 4031d73..7d692d7 100644
+--- a/src/3rdparty/libpng/pngpriv.h
++++ b/src/3rdparty/libpng/pngpriv.h
+@@ -415,7 +415,7 @@
+       * <fp.h> if possible.
+       */
+ #    if !defined(__MATH_H__) && !defined(__MATH_H) && !defined(__cmath__)
+-#      include <fp.h>
++#      include <math.h>
+ #    endif
+ #  else
+ #    include <math.h>
+diff --git a/src/corelib/io/qfilesystemwatcher_fsevents.cpp b/src/corelib/io/qfilesystemwatcher_fsevents.cpp
+index 87868f7..53747e4 100644
+--- a/src/corelib/io/qfilesystemwatcher_fsevents.cpp
++++ b/src/corelib/io/qfilesystemwatcher_fsevents.cpp
+@@ -74,7 +74,7 @@ static bool operator==(const struct ::timespec &left, const struct ::timespec &r
+             && left.tv_nsec == right.tv_nsec;
+ }
+
+-static bool operator==(const struct ::stat64 &left, const struct ::stat64 &right)
++static bool operator==(const struct ::stat &left, const struct ::stat &right)
+ {
+     return left.st_dev == right.st_dev
+             && left.st_mode == right.st_mode
+@@ -87,7 +87,7 @@ static bool operator==(const struct ::stat64 &left, const struct ::stat64 &right
+             && left.st_flags == right.st_flags;
+ }
+
+-static bool operator!=(const struct ::stat64 &left, const struct ::stat64 &right)
++static bool operator!=(const struct ::stat &left, const struct ::stat &right)
+ {
+     return !(operator==(left, right));
+ }
+@@ -344,8 +344,8 @@ void QFSEventsFileSystemWatcherEngine::updateList(PathInfoList &list, bool direc
+     PathInfoList::iterator End = list.end();
+     PathInfoList::iterator it = list.begin();
+     while (it != End) {
+-        struct ::stat64 newInfo;
+-        if (::stat64(it->absolutePath, &newInfo) == 0) {
++        struct ::stat newInfo;
++        if (::stat(it->absolutePath, &newInfo) == 0) {
+             if (emitSignals) {
+                 if (newInfo != it->savedInfo) {
+                     it->savedInfo = newInfo;
+diff --git a/src/corelib/io/qfilesystemwatcher_fsevents_p.h b/src/corelib/io/qfilesystemwatcher_fsevents_p.h
+index 84f196f..0dcb413 100644
+--- a/src/corelib/io/qfilesystemwatcher_fsevents_p.h
++++ b/src/corelib/io/qfilesystemwatcher_fsevents_p.h
+@@ -83,7 +83,7 @@ struct PathInfo {
+             : originalPath(path), absolutePath(absPath) {}
+     QString originalPath; // The path we need to emit
+     QByteArray absolutePath; // The path we need to stat.
+-    struct ::stat64 savedInfo;  // All the info for the path so we can compare it.
++    struct ::stat savedInfo;  // All the info for the path so we can compare it.
+ };
+ typedef QLinkedList<PathInfo> PathInfoList;
+ typedef QHash<QString, PathInfoList> PathHash;
+diff --git a/src/gui/kernel/qcocoamenuloader_mac.mm b/src/gui/kernel/qcocoamenuloader_mac.mm
+index ca2481f..06ba415 100644
+--- a/src/gui/kernel/qcocoamenuloader_mac.mm
++++ b/src/gui/kernel/qcocoamenuloader_mac.mm
+@@ -125,7 +125,7 @@ - (void)ensureAppMenuInMenu:(NSMenu *)menu
+ - (void)removeActionsFromAppMenu
+ {
+     for (NSMenuItem *item in [appMenu itemArray])
+-        [item setTag:nil];
++        [item setTag:NULL];
+ }
+
+ - (void)dealloc
+diff --git a/src/gui/kernel/qcursor_mac.mm b/src/gui/kernel/qcursor_mac.mm
+index c8ccf75..48aed2f 100644
+--- a/src/gui/kernel/qcursor_mac.mm
++++ b/src/gui/kernel/qcursor_mac.mm
+@@ -319,7 +319,7 @@ void qt_mac_update_cursor_at_global_pos(const QPoint &globalPos)
+     pos.x = x;
+     pos.y = y;
+
+-    CGEventRef e = CGEventCreateMouseEvent(0, kCGEventMouseMoved, pos, 0);
++    CGEventRef e = CGEventCreateMouseEvent(0, kCGEventMouseMoved, pos, kCGMouseButtonLeft);
+     CGEventPost(kCGHIDEventTap, e);
+     CFRelease(e);
+ #else
+diff --git a/src/gui/kernel/qwidget_mac.mm b/src/gui/kernel/qwidget_mac.mm
+index 5730020..57c8114 100644
+--- a/src/gui/kernel/qwidget_mac.mm
++++ b/src/gui/kernel/qwidget_mac.mm
+@@ -3620,7 +3620,7 @@ QPoint qt_mac_nativeMapFromParent(const QWidget *child, const QPoint &pt)
+ #else
+             // Only needed if it exists from 10.7 or later
+             if ((q->windowType() == Qt::Tool) && [window respondsToSelector: @selector(setAnimationBehavior:)])
+-                [window setAnimationBehavior: 2]; // NSWindowAnimationBehaviorNone == 2
++                [window setAnimationBehavior: NSWindowAnimationBehaviorNone]; // NSWindowAnimationBehaviorNone == 2
+
+             [window orderOut:window];
+             // Unfortunately it is not as easy as just hiding the window, we need
+diff --git a/src/gui/widgets/qmenu_mac.mm b/src/gui/widgets/qmenu_mac.mm
+index 6a9cbc7..cfdb8a4 100644
+--- a/src/gui/widgets/qmenu_mac.mm
++++ b/src/gui/widgets/qmenu_mac.mm
+@@ -769,7 +769,7 @@ bool qt_mac_menubar_is_open()
+                    && menuItem != [getMenuLoader() quitMenuItem]) {
+             [menuItem setHidden:YES];
+         }
+-        [menuItem setTag:nil];
++        [menuItem setTag:NULL];
+     }
+     [menuItem release];
+ #endif
+diff --git a/src/plugins/accessible/widgets/itemviews.cpp b/src/plugins/accessible/widgets/itemviews.cpp
+index 14c9279..516f2e2 100644
+--- a/src/plugins/accessible/widgets/itemviews.cpp
++++ b/src/plugins/accessible/widgets/itemviews.cpp
+@@ -393,7 +393,7 @@ bool QAccessibleTable2::unselectColumn(int column)
+     QModelIndex index = view()->model()->index(0, column, view()->rootIndex());
+     if (!index.isValid() || view()->selectionMode() & QAbstractItemView::NoSelection)
+         return false;
+-    view()->selectionModel()->select(index, QItemSelectionModel::Columns & QItemSelectionModel::Deselect);
++    view()->selectionModel()->select(index, QItemSelectionModel::Columns | QItemSelectionModel::Deselect);
+     return true;
+ }
+
+diff --git a/src/xmlpatterns/api/qcoloroutput_p.h b/src/xmlpatterns/api/qcoloroutput_p.h
+index 7911e89..eb249e1 100644
+--- a/src/xmlpatterns/api/qcoloroutput_p.h
++++ b/src/xmlpatterns/api/qcoloroutput_p.h
+@@ -71,7 +71,7 @@ namespace QPatternist
+             BackgroundShift = 20,
+             SpecialShift    = 20,
+             ForegroundMask  = ((1 << ForegroundShift) - 1) << ForegroundShift,
+-            BackgroundMask  = ((1 << BackgroundShift) - 1) << BackgroundShift
++            BackgroundMask  = ((1ull << BackgroundShift) - 1ull) << BackgroundShift
+         };
+
+     public:
