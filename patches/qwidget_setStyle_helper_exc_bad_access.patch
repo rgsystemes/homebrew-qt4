@@ -1,0 +1,13 @@
+diff --git a/src/gui/kernel/qwidget.cpp b/src/gui/kernel/qwidget.cpp
+index 13339c0..2a9e47a 100644
+--- a/src/gui/kernel/qwidget.cpp
++++ b/src/gui/kernel/qwidget.cpp
+@@ -2758,7 +2758,7 @@ void QWidgetPrivate::setStyle_helper(QStyle *newStyle, bool propagate, bool
+     Q_Q(QWidget);
+     QStyle *oldStyle  = q->style();
+ #ifndef QT_NO_STYLE_STYLESHEET
+-    QWeakPointer<QStyle> origStyle;
++    QPointer<QStyle> origStyle;
+ #endif
+
+ #ifdef Q_WS_MAC

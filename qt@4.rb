@@ -17,11 +17,14 @@ class QtAT4 < Formula
   end
 
   option "with-docs", "Build documentation"
+  option "with-universal", "Build a universal binary (x86_64 + arm64)"
 
   deprecated_option "qtdbus" => "with-dbus"
   deprecated_option "with-d-bus" => "with-dbus"
 
   depends_on "openssl@1.0"
+  depends_on "freetds"
+  depends_on "unixodbc"
   depends_on "dbus" => :optional
   depends_on "mysql" => :optional
   depends_on "postgresql" => :optional
@@ -72,6 +75,30 @@ class QtAT4 < Formula
     sha256 "f2012863e13914dbb62ccc9d99d6c9e662c37491c7b93e9df6347a75e8137dbb"
   end
 
+  # Patch to fix build on macOS Sequoia
+  patch do
+    url "https://raw.githubusercontent.com/cartr/homebrew-qt4/a346c6d4a398f0bd11a4418db3713bd87a7ef0f2/patches/qt4-sequoia.patch"
+    sha256 "3464175f05acfa0d77fa46df43454d94fe238a9f2d7088393a866d01fea9889a"
+  end
+
+  # AArch64 support patch (based on https://salsa.debian.org/qt-kde-team/qt/qt4-x11/-/raw/b720da7b9bab7b5331b112dbbe7a51297e12faf7/debian/patches/aarch64_arm64_qatomic_support.patch)
+  patch do
+    url "https://raw.githubusercontent.com/cartr/homebrew-qt4/a346c6d4a398f0bd11a4418db3713bd87a7ef0f2/patches/aarch64_arm64_qatomic_support.patch"
+    sha256 "1aba5c1c7417f975208d22a2de55fc8fc760c4a17353b3d4ca452b8c23c3ab12"
+  end
+
+  # QPointer assigned to QWeakPointer EXEC_BAD_ACCESS fix
+  patch do
+    url "https://raw.githubusercontent.com/cartr/homebrew-qt4/a346c6d4a398f0bd11a4418db3713bd87a7ef0f2/patches/qwidget_setStyle_helper_exc_bad_access.patch"
+    sha256 "0e05bbd22f0b0539b4edaf21f6cb26a47f0a9589188058a6be6984dafe2ba629"
+  end
+
+  # Integer weight/italic fonts
+  patch do
+    url "https://raw.githubusercontent.com/cartr/homebrew-qt4/a346c6d4a398f0bd11a4418db3713bd87a7ef0f2/patches/qfontdatabase_assert.patch"
+    sha256 "32371147969d47d0231aa1817eab18fbfa52364102c5666cd214932d434f004b"
+  end
+
   def install
     if MacOS.sdk_path_if_needed
       # Qt attempts to build with a 10.4 deployment target, even though
@@ -116,6 +143,8 @@ class QtAT4 < Formula
       else
         "unsupported/macx-clang"
       end
+
+      args << "-no-opengl" if MacOS.version >= :tahoe
     end
 
     # Phonon is broken on macOS 10.12+ and Xcode 8+ due to QTKit.framework
@@ -139,8 +168,12 @@ class QtAT4 < Formula
     end
 
     args << "-nomake" << "docs" if build.without? "docs"
+    args << "-debug-and-release" if ENV["HOMEBREW_CCCFG"]&.include?("D")
 
-    args << "-arch" << "x86_64"
+    ENV.permit_arch_flags
+    if build.with?("universal")
+      args << "-universal"
+    end
 
     # Patch macdeployqt so it finds the plugin path
     inreplace "tools/macdeployqt/macdeployqt/main.cpp", '"/Developer/Applications/Qt/plugins"',
@@ -152,29 +185,10 @@ class QtAT4 < Formula
     system "mv src/3rdparty/javascriptcore/VERSION src/3rdparty/javascriptcore/VERSION.md"
 
     system "./configure", *args
+    system "cp src/corelib/arch/qatomic_aarch64.h include/QtCore" if Hardware::CPU.arm? || build.with?("universal")
     system "make"
     ENV.deparallelize
     system "make", "install"
-
-    # Delete qmake, as we'll be rebuilding it
-    system "rm", "bin/qmake"
-    system "rm", "#{bin}/qmake"
-    system "make", "clean"
-
-    # Patch the configure script so the built qmake can find Webkit if installed
-    inreplace "configure", '=$QT_INSTALL_PREFIX"`', "=#{HOMEBREW_PREFIX}\"`"
-    inreplace "configure", '=$QT_INSTALL_DOCS"`', "=#{HOMEBREW_PREFIX}/doc\"`"
-    inreplace "configure", '=$QT_INSTALL_HEADERS"`', "=#{HOMEBREW_PREFIX}/include\"`"
-    inreplace "configure", '=$QT_INSTALL_LIBS"`', "=#{HOMEBREW_PREFIX}/lib\"`"
-    inreplace "configure", '=$QT_INSTALL_BINS"`', "=#{HOMEBREW_PREFIX}/bin\"`"
-    inreplace "configure", '=$QT_INSTALL_PLUGINS"`', "=#{HOMEBREW_PREFIX}/lib/qt4/plugins\"`"
-    inreplace "configure", '=$QT_INSTALL_IMPORTS"`', "=#{HOMEBREW_PREFIX}/lib/qt4/imports\"`"
-    inreplace "configure", '=$QT_INSTALL_DATA"`', "=#{HOMEBREW_PREFIX}/etc/qt4\"`"
-    inreplace "configure", '=$QT_INSTALL_SETTINGS"`', "=#{HOMEBREW_PREFIX}\"`"
-
-    # Run ./configure again, to rebuild qmake
-    system "./configure", *args
-    bin.install "bin/qmake"
 
     # what are these anyway?
     (bin+"pixeltool.app").rmtree
@@ -197,6 +211,10 @@ class QtAT4 < Formula
            "#{bin}/Designer.app/Contents/Info.plist"
 
     Pathname.glob("#{bin}/*.app") { |app| mv app, prefix }
+  end
+
+  def post_install
+    system "cp $(brew --cache)/Sources/qtA4/qt-everywhere-opensource-src-4.8.7/src/corelib/arch/qatomic_aarch64.h #{HOMEBREW_PREFIX}/include/QtCore" if Hardware::CPU.arm? || build.with?("universal")
   end
 
   def caveats
