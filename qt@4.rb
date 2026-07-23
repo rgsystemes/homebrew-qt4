@@ -144,7 +144,7 @@ class QtAT4 < Formula
         "unsupported/macx-clang"
       end
 
-      args << "-no-opengl" if MacOS.version >= :tahoe
+      args << "-no-opengl" if MacOS::Xcode.sdk.version >= :tahoe
     end
 
     # Phonon is broken on macOS 10.12+ and Xcode 8+ due to QTKit.framework
