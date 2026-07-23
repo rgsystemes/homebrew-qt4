@@ -144,7 +144,7 @@ class QtAT4 < Formula
         "unsupported/macx-clang"
       end
 
-      args << "-no-opengl" if MacOS.version >= :tahoe
+      args << "-no-opengl" if MacOS::Xcode.sdk.version >= :tahoe
     end
 
     # Phonon is broken on macOS 10.12+ and Xcode 8+ due to QTKit.framework
@@ -173,6 +173,14 @@ class QtAT4 < Formula
     ENV.permit_arch_flags
     if build.with?("universal")
       args << "-universal"
+
+      # Homebrew's compiler shim (first on PATH) injects its own -march=westmere
+      # flag into every clang/clang++ invocation regardless of the flags qmake's
+      # build system passes. That flag is invalid whenever -arch arm64 is also
+      # present, which breaks qt's own bootstrap build (qmake building itself)
+      # as well as the main Qt build. Bypass the shim entirely for this build by
+      # putting the real system clang/clang++ first on PATH.
+      ENV["PATH"] = "/usr/bin:#{ENV["PATH"]}"
     end
 
     # Patch macdeployqt so it finds the plugin path
