@@ -59,9 +59,24 @@ class OpensslAT10 < Formula
 
       # --- arm64 pass (C only — OpenSSL 1.0.2 has no arm64 asm target) ---
       system "make", "clean"
+
+      # On an x86_64 host, Homebrew's compiler shim injects a host-arch -march flag
+      # (e.g. -march=westmere) that it never prints in the build log. That flag is
+      # invalid when this pass targets -arch arm64, so bypass the shim only in that
+      # specific case. On an arm64 host this isn't needed — the shim behaves
+      # correctly there — so leave it untouched to avoid losing other shim-managed
+      # flags (sysroot, search paths, etc.).
+      if Hardware::CPU.intel?
+        old_path = ENV["PATH"]
+        ENV["PATH"] = "/usr/bin:#{old_path}"
+      end
+
       system "perl", "./Configure", *common_args, "darwin64-arm64-cc", "no-asm"
       system "make", "depend"
       system "make"
+      
+      ENV["PATH"] = old_path if Hardware::CPU.intel?
+      
       (buildpath/"arch-arm64").mkpath
       Dir["*.a", "*.dylib"].each do |f|
         cp f, buildpath/"arch-arm64"/File.basename(f) unless File.symlink?(f)
