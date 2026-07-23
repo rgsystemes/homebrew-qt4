@@ -38,12 +38,17 @@ class Unixodbc < Formula
 
   def install
     if build.with?("universal")
-      # Tell the Homebrew compiler shim to pass -arch flags through unchanged.
-      ENV.permit_arch_flags
       arch_flags = "-arch x86_64 -arch arm64"
       ENV.append "CFLAGS",   arch_flags
       ENV.append "CXXFLAGS", arch_flags
       ENV.append "LDFLAGS",  arch_flags
+  
+      # Homebrew's compiler shim (first on PATH) injects its own -arch flags
+      # *and* a host-arch -march=westmere flag directly into the clang
+      # invocation, regardless of CFLAGS content — that -march flag is invalid
+      # whenever -arch arm64 is also present. Bypass the shim entirely by
+      # putting the real system clang first on PATH for this build.
+      ENV["PATH"] = "/usr/bin:#{ENV["PATH"]}"
     end
 
     system "./configure", "--disable-gui",
