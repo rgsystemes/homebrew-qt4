@@ -48,7 +48,7 @@ class OpensslAT10 < Formula
       system "make", "depend"
       system "make"
       (buildpath/"arch-x86_64").mkpath
-      Dir["*.a", "*.dylib"].each do |f|
+      Dir["*.a", "*.dylib", "apps/openssl"].each do |f|
         cp f, buildpath/"arch-x86_64"/File.basename(f) unless File.symlink?(f)
       end
 
@@ -73,7 +73,7 @@ class OpensslAT10 < Formula
       ENV["PATH"] = old_path if Hardware::CPU.intel?
       
       (buildpath/"arch-arm64").mkpath
-      Dir["*.a", "*.dylib"].each do |f|
+      Dir["*.a", "*.dylib", "apps/openssl"].each do |f|
         cp f, buildpath/"arch-arm64"/File.basename(f) unless File.symlink?(f)
       end
 
@@ -81,7 +81,7 @@ class OpensslAT10 < Formula
       system "make", "install", "MANDIR=#{man}", "MANSUFFIX=ssl"
 
       # Replace every installed single-arch library with a fat binary.
-      Dir["#{lib}/*.a", "#{lib}/*.dylib"].each do |installed|
+      Dir["#{lib}/*.a", "#{lib}/*.dylib", "#{bin}/openssl"].each do |installed|
         next if File.symlink?(installed)
         name  = File.basename(installed)
         x86   = buildpath/"arch-x86_64"/name
