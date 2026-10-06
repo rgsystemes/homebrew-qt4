@@ -4,7 +4,7 @@ class QtAT4 < Formula
   url "https://download.qt.io/archive/qt/4.8/4.8.7/qt-everywhere-opensource-src-4.8.7.tar.gz"
   mirror "https://mirrors.ocf.berkeley.edu/qt/archive/qt/4.8/4.8.7/qt-everywhere-opensource-src-4.8.7.tar.gz"
   sha256 "e2882295097e47fe089f8ac741a95fef47e0a73a3f3cdf21b56990638f626ea0"
-  revision 6
+  revision 7
 
   head "https://code.qt.io/qt/qt.git", branch: "4.8"
 
@@ -188,6 +188,19 @@ class QtAT4 < Formula
 "\"#{HOMEBREW_PREFIX}/lib/qt4/plugins\""
     inreplace "tools/macdeployqt/macdeployqt/main.cpp", 'deploymentInfo.qtPath + "/plugins"',
 "\"#{HOMEBREW_PREFIX}/lib/qt4/plugins\""
+
+    # Since the macOS 13 SDK, kCGBitmapByteOrder32Host is a static const instead of a macro, so Qt's
+    # `#ifdef kCGBitmapByteOrder32Host` guards are always false: CGImages/CGBitmapContexts are created
+    # big-endian over Qt's little-endian ARGB32 buffers and every pixmap/icon is drawn with wrong colors
+    # (black/orange -> white, blue -> light purple). The constant exists in every supported SDK.
+    inreplace %w[
+      src/gui/image/qnativeimage.cpp
+      src/gui/image/qpixmap_mac.cpp
+      src/gui/painting/qpaintdevice_mac.cpp
+      src/gui/painting/qpaintengine_mac.cpp
+      src/gui/text/qfontengine_coretext.mm
+      src/gui/text/qfontengine_mac.mm
+    ], /^#\s*if(?:def\s+|\s+defined\s*\(\s*)kCGBitmapByteOrder32Host\b\)?/, "#if 1"
 
     # Patch to fix build on macOS Big Sur
     system "mv src/3rdparty/javascriptcore/VERSION src/3rdparty/javascriptcore/VERSION.md"
