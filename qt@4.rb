@@ -100,7 +100,7 @@ class QtAT4 < Formula
   end
 
   def install
-    if MacOS.sdk_path_if_needed
+    if MacOS.sdk_path
       # Qt attempts to build with a 10.4 deployment target, even though
       # we use libc++ which is only available in 10.9+. This used to not fail
       # (although I'm unsure if the resulting binary would've worked on 10.4)
