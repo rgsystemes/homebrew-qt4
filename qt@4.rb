@@ -4,7 +4,7 @@ class QtAT4 < Formula
   url "https://download.qt.io/archive/qt/4.8/4.8.7/qt-everywhere-opensource-src-4.8.7.tar.gz"
   mirror "https://mirrors.ocf.berkeley.edu/qt/archive/qt/4.8/4.8.7/qt-everywhere-opensource-src-4.8.7.tar.gz"
   sha256 "e2882295097e47fe089f8ac741a95fef47e0a73a3f3cdf21b56990638f626ea0"
-  revision 7
+  revision 8
 
   head "https://code.qt.io/qt/qt.git", branch: "4.8"
 
@@ -211,6 +211,11 @@ class QtAT4 < Formula
     ENV.deparallelize
     system "make", "install"
 
+    # The release tarball ships a pre-generated include/ tree, so configure skips
+    # syncqt and the AArch64 patch's new header is missing from headers.pri.
+    # make install therefore never copies it into the framework.
+    (lib/"QtCore.framework/Versions/4/Headers").install "src/corelib/arch/qatomic_aarch64.h"
+
     # what are these anyway?
     (bin+"pixeltool.app").rmtree
     (bin+"qhelpconverter.app").rmtree
@@ -234,10 +239,6 @@ class QtAT4 < Formula
     Pathname.glob("#{bin}/*.app") { |app| mv app, prefix }
   end
 
-  def post_install
-    system "cp $(brew --cache)/Sources/qtA4/qt-everywhere-opensource-src-4.8.7/src/corelib/arch/qatomic_aarch64.h #{HOMEBREW_PREFIX}/include/QtCore" if Hardware::CPU.arm? || build.with?("universal")
-  end
-
   def caveats
     <<~EOS
                 We agreed to the Qt opensource license for you.
@@ -252,6 +253,7 @@ class QtAT4 < Formula
 
   test do
     Encoding.default_external = "UTF-8" unless RUBY_VERSION.start_with? "1."
+    assert_path_exists lib/"QtCore.framework/Headers/qatomic_aarch64.h"
     resource("test-project").stage testpath
     system bin/"qmake"
     system "make"
