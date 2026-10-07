@@ -67,8 +67,16 @@ class OpensslAT10 < Formula
       end
 
       system "perl", "./Configure", *common_args, "darwin64-arm64-cc", "no-asm"
-      system "make", "depend"
-      system "make"
+
+      # On an arm64 host, cctools' `as` isn't a true cross-assembler: each arch
+      # slice of that universal binary can only assemble for the architecture
+      # the process itself is running as, unlike clang's own integrated
+      # assembler. A native arm64 process passing `-arch x86_64` to `as` fails
+      # to parse the generated .s files as x86_64 opcodes at all. Run `make`
+      # under Rosetta 2 so `as` executes as x86_64 and assembles natively.
+      make = Hardware::CPU.arm? ? ["arch", "-x86_64", "make"] : ["make"]
+      system(*make, "depend")
+      system(*make)
       
       ENV["PATH"] = old_path if Hardware::CPU.intel?
       
